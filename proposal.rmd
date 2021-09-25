@@ -1,30 +1,95 @@
 ---
 title: "Project A Proposal"
-author: "Audrey Zhu"
+author: "Audrey Zhu and Ying Xiong"
 date: "9/24/2021"
-output: html_document
+output:
+  rmdformats::readthedown:
+    highlight: kate
+    number_sections: TRUE
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+# Preliminaries
+
+```{r setup, echo=FALSE, cache=FALSE}
+## Dr Love recommends you leave this code chunk exactly as it is
+library(knitr)
+library(rmdformats)
+
+## Global options
+options(max.print="100")
+opts_chunk$set(comment=NA)
+opts_knit$set(width=75)
 ```
 
-## R Markdown
+## My R Packages
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r load_packages_here, message = FALSE}
+library(janitor)
+library(magrittr)
+library(naniar)
+library(tidyverse)
 ```
 
-## Including Plots
+## Data Ingest
 
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r read_in_data_here, message = FALSE}
+chr_2021_raw <- read_csv("data/analytic_data2021.csv", skip = 1, guess_max = 4000)
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+# Data Development
+
+## Selecting My Data
+
+[Write explanation here]
+
+```{r}
+chr_2021 <- chr_2021_raw %>% 
+  filter(county_ranked == 1) %>% 
+  filter(state %in% c("WA", "MN", "MT", "MS", "CA")) %>% 
+  select(fipscode, state, county, v069_rawvalue, v063_rawvalue, v082_rawvalue,
+         v142_rawvalue, v166_rawvalue) %>% 
+  rename(some_college = v069_rawvalue,
+         med_household_income = v063_rawvalue,
+         single_parent = v082_rawvalue,
+         residential_segregation = v142_rawvalue,
+         broadband_access = v166_rawvalue) %>% 
+  mutate(some_college = some_college * 100,
+         med_household_income = med_household_income / 1000,
+         single_parent = single_parent * 100,
+         broadband_access = broadband_access * 100)
+```
+
+## Repairing the `fipscode` and Factoring the `state`
+
+```{r}
+chr_2021 <- chr_2021 %>% 
+  mutate(fipscode = str_pad(fipscode, 5, pad = "0"),
+         state = factor(state))
+```
+
+## Checking the Initial Work
+
+```{r}
+glimpse(chr_2021)
+```
+
+```{r}
+chr_2021 %>% tabyl(state) %>% adorn_pct_formatting()
+```
+
+## Creating a Binary Categorical Variable
+
+[Write Explanation Here] (The median is 30.34, not 50, so I chose that)
+
+```{r, message = FALSE}
+chr_2021 <- chr_2021 %>%
+    mutate(res_seg_bin = case_when(
+      residential_segregation < median(residential_segregation, na.rm = TRUE) ~
+        "more_integrated",
+      TRUE ~ "more_segregated"),
+      res_seg_bin = factor(res_seg_bin))
+
+mosaic::favstats(residential_segregation ~ res_seg_bin, data = chr_2021) %>% 
+    kable(digits = 3)
+```
+
