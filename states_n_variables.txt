@@ -1,0 +1,14 @@
+PQHS 431 Project A Variables and States
+
+Outcome: v069 - some college
+Quantitative: v166 - broadband access, v082 - children in single-parent households
+Categorical:
+	Binary: v142 - residential segregation - white/non-white
+	Multi-categorical: v063 - median household income
+
+States:
+- Washington
+- Minnesota
+- Montana
+- Mississippi
+- California
