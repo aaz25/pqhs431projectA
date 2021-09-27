@@ -49,20 +49,20 @@ chr_2021 <- chr_2021_raw %>%
   filter(county_ranked == 1) %>% 
   filter(state %in% c("CA", "MN", "MT", "MS", "OH", "WA")) %>% 
   select(fipscode, state, county, v063_rawvalue, v069_rawvalue, v082_rawvalue,
-         v023_rawvalue, v166_rawvalue) %>% 
+         v137_rawvalue, v166_rawvalue) %>% 
   rename(median_household_income = v063_rawvalue,
          some_college = v069_rawvalue,
          single_parent = v082_rawvalue,
-         unemployment = v023_rawvalue,
+         long_commute = v137_rawvalue,
          broadband_access = v166_rawvalue) %>% 
   mutate(median_household_income = median_household_income / 1000,
          some_college = some_college * 100,
          single_parent = single_parent * 100,
-         unemployment = unemployment * 100,
+         long_commute = long_commute * 100,
          broadband_access = broadband_access * 100)
 
 head(chr_2021)
-summary(chr_2021$unemployment)
+summary(chr_2021$long_commute)
 summary(chr_2021$broadband_access)
 ```
 
@@ -90,13 +90,13 @@ chr_2021 %>% tabyl(state) %>% adorn_pct_formatting()
 
 ```{r, message = FALSE}
 chr_2021 <- chr_2021 %>%
-    mutate(unemployment_2cat = case_when(
-      unemployment < median(unemployment, na.rm = TRUE) ~
+    mutate(long_commute_2cat = case_when(
+      long_commute < median(long_commute, na.rm = TRUE) ~
         "low",
       TRUE ~ "high"),
-      unemployment_2cat = factor(unemployment_2cat))
+      long_commute_2cat = factor(long_commute_2cat))
 
-mosaic::favstats(unemployment ~ unemployment_2cat, data = chr_2021) %>% 
+mosaic::favstats(long_commute ~ long_commute_2cat, data = chr_2021) %>% 
     kable(digits = 3)
 ```
 
@@ -170,7 +170,7 @@ chr_2021 %>%
 chr_2021 %>% 
   dplyr::summarize(across(median_household_income:broadband_access, ~ n_distinct(.)))
 
-chr_2021 %>% tabyl(unemployment_2cat)
+chr_2021 %>% tabyl(long_commute_2cat)
 chr_2021 %>% tabyl(broadband_access_4cat)
 ```
 
