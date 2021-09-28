@@ -177,7 +177,7 @@ There are no missing values across any of the 10 variables in our tibble `chr_20
 ## Saving the Tibble 
 
 ```{r}
-saveRDS(chr_2021, file = "chr_2021_Audrey_Zhu_Ying_Xiong.Rds")
+saveRDS(chr_2021, file = "data/chr_2021_Audrey_Zhu_Ying_Xiong.Rds")
 ```
 
 ## Proposal Requirement 5 
