@@ -53,17 +53,16 @@ chr_2021 <- chr_2021_raw %>%
   rename(median_household_income = v063_rawvalue,
          some_college = v069_rawvalue,
          single_parent = v082_rawvalue,
-         long_commute = v137_rawvalue,
-         broadband_access = v166_rawvalue) %>% 
+         long_commute_raw = v137_rawvalue,
+         broadband_access_raw = v166_rawvalue) %>% 
   mutate(median_household_income = median_household_income / 1000,
          some_college = some_college * 100,
          single_parent = single_parent * 100,
-         long_commute = long_commute * 100,
-         broadband_access = broadband_access * 100)
+         long_commute_raw = long_commute_raw * 100,
+         broadband_access_raw = broadband_access_raw * 100)
 
-head(chr_2021)
-summary(chr_2021$long_commute)
-summary(chr_2021$broadband_access)
+summary(chr_2021$long_commute_raw)
+summary(chr_2021$broadband_access_raw)
 ```
 
 ## Repairing the `fipscode` and Factoring the `state`
@@ -84,70 +83,69 @@ glimpse(chr_2021)
 chr_2021 %>% tabyl(state) %>% adorn_pct_formatting()
 ```
 
-## Creating a Binary Categorical Variable for unemployment
+## Creating a binary categorical variable for percentage of those with a long commute of more than 30 minutes and drive alone 
 
-[Write Explanation Here] (The median is 4.475)
+The 2 categories are generated from long_commute_raw and used information regarding its median. 
 
 ```{r, message = FALSE}
 chr_2021 <- chr_2021 %>%
     mutate(long_commute_2cat = case_when(
-      long_commute < median(long_commute, na.rm = TRUE) ~
+      long_commute_raw < median(long_commute_raw) ~
         "low",
       TRUE ~ "high"),
       long_commute_2cat = factor(long_commute_2cat))
 
-mosaic::favstats(long_commute ~ long_commute_2cat, data = chr_2021) %>% 
+mosaic::favstats(long_commute_raw ~ long_commute_2cat, data = chr_2021) %>% 
     kable(digits = 3)
 ```
 
-## Creating a 4-Category Variable for broadband_access 
+## Creating a 4-category variable for percentage of householads with broadband internet connection 
 
-The categories are generated based on information from the minimum, first quartile, median, third quartile, and maximum. 
+The 4 categories are generated from broadband_access_raw and used information regarding its minimum, first quartile, median, third quartile, and maximum. 
 
 ```{r}
 chr_2021 <- chr_2021 %>%
   mutate(broadband_access_4cat = case_when(
-    broadband_access < 71.96 ~ "1_very_low",
-    broadband_access < 78.44 ~ "2_low",
-    broadband_access < 83.07 ~ "3_high",
+    broadband_access_raw < 71.96 ~ "1_very_low",
+    broadband_access_raw < 78.44 ~ "2_low",
+    broadband_access_raw < 83.07 ~ "3_high",
     TRUE ~ "4_very_high"
   ))
 
-mosaic::favstats(broadband_access ~ broadband_access_4cat, data = chr_2021) %>% 
+mosaic::favstats(broadband_access_raw ~ broadband_access_4cat, data = chr_2021) %>% 
   kable(digits = 3)
 
 names(chr_2021)
+nrow(chr_2021)
 str(chr_2021)
 ```
 
 # Proposal Requirements 
 
 ## Proposal Requirement 1 
-The six states that we selected are California, Minnesota, Montana, Mississippi, Ohio, and Washington. The total number of counties we are studying is 402. The number of counties by state are as follows: 58 for California, 87 for Minnesota, 82 for Mississippi, 48 for Montana, 88 for Ohio, and 39 for Washington. We initially selected Minnesota and Washington because those were the states where Ying and Audrey have their permanent residences, respectively. We then selected California, Montana, and Mississippi based on the relative level of urbanization in those three states, according to information from Iowa State University (https://www.icip.iastate.edu/tables/population/urban-pct-states). We noticed California had the highest percentage of its state population living in an urban area while Montana and Mississippi were among the lowest. 
+
+The 6 states that we selected are California, Minnesota, Montana, Mississippi, Ohio, and Washington. The total number of counties we are studying is 402. The number of counties by state are as follows: 58 for California, 87 for Minnesota, 82 for Mississippi, 48 for Montana, 88 for Ohio, and 39 for Washington. We initially selected Minnesota and Washington because those were the states where the two of us have our permanent residences. We then selected California, Montana, and Mississippi based on the relative level of urbanization in those three states, according to information from [Iowa State University] (https://www.icip.iastate.edu/tables/population/urban-pct-states). We noticed California had the highest percentage of its state population living in an urban area, while Montana and Mississippi were among the lowest. 
 
 ```{r}
 chr_2021 %>% count(state)
 ```
 
-## Proposal Requirement 2 
+## Proposal Requirement 2 (Codebook)
 
 Variable | Description
 --------- | ------------------------------------------------
-3 required variables 
 fipscode | FIPS code
 state | State: my six states are CA, MN, MT, MS, OH, and WA
 county | County Name
+median_household_income | (v063) Median household income in thousands, which will be our **outcome** 
+some_college | (v069) Percentage of some college education
+single_parent | (v082) Percentage of children in single-parent households 
+long_commute_raw | (v137) Percentage of those with a long commute of more than 30 minutes and drive alone   
+broadband_access_raw | (v166) Percentage of households with broadband internet access 
+long_commute_2cat | 2 levels: low = unemployment below 30.65% (i.e. the median), or high
+broadband_access_4cat | 4 levels: very low = broadband_access_raw below 71.96%, low = below 78.44%, high = below 83.07%, and very high = 93.25% or higher 
 
-5 additional variables and transformations for 2 of them 
-median_household_income | (v063_rawvalue), quantitative; Median household income in thousands, which will be our **outcome** 
-some_college | (v069_rawvalue), quantitative; Percentage of some college education
-single_parent | (v082_rawvalue), quantitative; Percentage of children in single-parent households 
-unemployment | (v023_rawvalue), later turned to binary categorical; Percentage of unemployment 
-broadband_access | (v166_rawvalue), later turned to multi-categorical; Percentage of broadband internet access 
-unemployment_2cat | transformed to 2 levels from unemployment: low = unemployment below 4.475% (i.e. the median), or high
-broadband_access_4cat | transformed to 4 levels from broadband_access: very low = broadband_access below 71.96%, low = broadband_access below 78.44%, high = broadband_access below 83.07%, and very high = broadband_access at 93.25% or lower. 
-
-We are interested in having the quantitative variable of median household income as our outcome because we believe it is a broad variable that can be influenced by many potential factors and can serve as an intuitive output for our other variables of interest. We selected some college education because we hypothesized that it would be correlated with median household income, in which a higher percentage of some college education predicted higher incomes. Conversely, we were interested in unemployment because we envisioned higher unemployment would negatively impact median household income and vice versa for lower unemployment. Our motivation to choose percentage of children in single-parent households was due to its potential implications on income, in which a higher percentage of single-parent households may negatively affect income. Our last variable was broadband access, and our interest was due to its use as a proxy for technological accessibility in a household and its potential influence on or reflection of income, such as if a family can afford broadband access given their income. Finally, for unemployment, we turned it from a quantitative variable into a binary categorical variable based on the cutoff of 4.475%, which was the median unemployment rate, and classified it as either "low" or "high". For broadband access, we turned it from a quantitative variable into a 4-categorical variable based on 4 groups inspired by the first quartile (71.96%), median (78.44%), third quartile (83.07%), and maximum (93.25%). The 4 categories were as follows: below 71.96% was "very low", below 78.44% was "low", below 83.07% was "high", and at or below 93.25% was "very high". 
+We are interested in having the quantitative variable of median household income as our outcome because we believe it is a broad variable that can be influenced by many potential factors and can serve as an intuitive output for our other variables of interest. We selected percentage of some college education because we hypothesized that it would be correlated with median household income, in which a higher percentage of some college education would predict higher incomes. Our motivation to choose percentage of children in single-parent households was due to its potential implications on income, in which a higher percentage of single-parent households may negatively affect income. We chose to investigate percentage of those with long commutes because we were interested in learning whether travel time influenced the kind of work people had and therefore their incomes as well. Our last variable was broadband access, and our interest was due to its use as a proxy for technological accessibility in a household and its potential influence on or reflection of income, such as if a family can afford broadband access given their income. Finally, for percentage of those with a long commute, we turned it from a quantitative variable into a binary categorical variable based on the cutoff of 30.65%, which was the median percentage, and classified it as either "low" or "high". For broadband access, we turned it from a quantitative variable into a multi-categorical variable with 4 categories based on the variable distribution's quartiles. The 4 categories were as follows: below 71.96% was "very low", below 78.44% was "low", below 83.07% was "high", and at or below 93.25% was "very high". 
 
 ## Proposal Requirement 3 
 
@@ -168,30 +166,26 @@ chr_2021 %>%
   miss_var_summary()
 
 chr_2021 %>% 
-  dplyr::summarize(across(median_household_income:broadband_access, ~ n_distinct(.)))
+  dplyr::summarize(across(median_household_income:broadband_access_raw, ~ n_distinct(.)))
 
 chr_2021 %>% tabyl(long_commute_2cat)
 chr_2021 %>% tabyl(broadband_access_4cat)
 ```
 
-There are no missing values across any of the 10 variables in our tibble chr_2021. The raw versions for each of our five selected variables also have at least 10 distinct non-missing values. In fact, all of them appear distinct. Finally, for each of our two categorical variables, each level in either of the two factors has at least 10 counties. 
+There are no missing values across any of the 10 variables in our tibble `chr_2021`, as observed when we piped `chr_2021` into the `miss_var_summary` function. The raw versions for each of our five selected variables also have at least 10 distinct non-missing values, as seen via the `dplyr::summarize` function. In fact, all of them have hundreds of distinct values for each variable. Finally, for each of our two transformed categorical variables, each level in both factors has at least 10 counties, as observed when we piped `chr_2021` into the `tabyl` function. 
 
 ## Saving the Tibble 
 
 ```{r}
-saveRDS(chr_2021, file = "data/chr_2021_Audrey_Zhu_Ying_Xiong.Rds")
+saveRDS(chr_2021, file = "chr_2021_Audrey_Zhu_Ying_Xiong.Rds")
 ```
 
 ## Proposal Requirement 5 
 
-The most challenging part of completing Project A so far was manipulating 2 quantitative variables into the 2 categorical variables, namely one binary and another multi-category variable. Although the code for this process has been supplied by Dr. Love in the R markdown template, we ourselves had to envision what variables made sense to actually transform and what were appropriate cutoffs for both variables. We overcame this difficulty by talking with each other about variables we were interested in, namely rates of unemployment and broadband access, and thinking about logical cutoffs for both variables. Our open discussions will be useful to tackle future difficulties in Project A as they arise. 
+The most challenging part of completing Project A so far was manipulating 2 quantitative variables into the 2 categorical variables, namely one binary and another multi-category variable. Although the code for this process has been already supplied by Dr. Love in the R markdown template, we ourselves had to envision what variables made sense to actually transform and what were appropriate cutoffs for both variables. We overcame this difficulty by talking with each other about the variables we were interested in, namely percentages of those with a long commute and broadband access, and thinking about logical cutoffs for both variables. Our open discussions will be useful to tackle future difficulties in Project A as they arise. 
 
 ## Session Information 
 
 ```{r}
 sessionInfo()
 ```
-
-
-
-
