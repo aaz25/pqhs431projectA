@@ -54,16 +54,16 @@ chr_2021 <- chr_2021_raw %>%
   rename(median_household_income = v063_rawvalue,
          some_college = v069_rawvalue,
          single_parent = v082_rawvalue,
-         long_commute_raw = v137_rawvalue,
-         broadband_access_raw = v166_rawvalue) %>% 
+         broadband_access_raw = v166_rawvalue,
+         long_commute_raw = v137_rawvalue) %>% 
   mutate(median_household_income = median_household_income / 1000,
          some_college = some_college * 100,
          single_parent = single_parent * 100,
-         long_commute_raw = long_commute_raw * 100,
-         broadband_access_raw = broadband_access_raw * 100)
-
-summary(chr_2021$long_commute_raw)
+         broadband_access_raw = broadband_access_raw * 100,
+         long_commute_raw = long_commute_raw * 100)
+       
 summary(chr_2021$broadband_access_raw)
+summary(chr_2021$long_commute_raw)
 ```
 
 ## Repairing the `fipscode` and Factoring the `state`
@@ -100,7 +100,7 @@ mosaic::favstats(broadband_access_raw ~ broadband_access_2cat, data = chr_2021) 
     kable(digits = 3)
 ```
 
-## Creating a 4-category variable for the percentage of workers who drive to work alone that have a commute longer than 30 minutes called long_commute_5cat
+## Creating a 4-category variable for the percentage of workers who drive to work alone and have a commute longer than 30 minutes called long_commute_5cat
 
 The 5 categories are generated from `long_commute_raw` and are split along its quintiles. 
 
@@ -133,7 +133,7 @@ str(chr_2021)
 
 ## Proposal Requirement 1 
 
-The 6 states that we selected are California, Minnesota, Montana, Ohio, Washington, and West Virginia. The total number of counties we are studying is 375. The number of counties by state are as follows: 58 for California, 87 for Minnesota, 48 for Montana, 88 for Ohio, 39 for Washington, and 55 for West Virginia. We initially selected Minnesota and Washington because those were the states where the two of us have our permanent residences. We then selected California, Montana, and West Virginia based on the relative level of urbanization in those three states, according to information from [Iowa State University](https://www.icip.iastate.edu/tables/population/urban-pct-states). We noticed that California had the highest percentage of its state population living in an urban area, whereas Montana and West Virginia were among the lowest. 
+The 6 states that we selected are California, Minnesota, Montana, Ohio, Washington, and West Virginia. The total number of counties that we are studying is 375. The numbers of counties for each state are as follows: 58 for California, 87 for Minnesota, 48 for Montana, 88 for Ohio, 39 for Washington, and 55 for West Virginia. We initially selected Minnesota and Washington because those are the states where the two of us have our permanent residences. Ohio was a required state for this project. We then selected California, Montana, and West Virginia based on the relative level of urbanization in those three states, according to information from [Iowa State University](https://www.icip.iastate.edu/tables/population/urban-pct-states). We noticed that California has the highest percentage of its population living in an urban area, whereas Montana and West Virginia are among the lowest. 
 
 ```{r}
 chr_2021 %>% count(state)
@@ -149,16 +149,16 @@ county | County name
 median_household_income | (v063) Median household income (in thousands), which will be our **outcome** 
 some_college | (v069) Percentage of the adult population with some college education
 single_parent | (v082) Percentage of children in single-parent households 
-long_commute_raw | (v137) Percentage of those who drive to work alone with a commute longer than 30 minutes
 broadband_access_raw | (v166) Percentage of households with broadband internet access 
+long_commute_raw | (v137) Percentage of workers who drive to work alone with a commute longer than 30 minutes
 broadband_access_2cat | binary categorical transformation of `broadband_acces_raw`; 2 levels: low = broadband access below 78.99% (i.e. the median), or high
 long_commute_5cat | multi-categorical transformation of `long_commute_raw`; 5 levels: 1_very_low = long_commute_raw below 20.78%, 2_low = below 26.92%, 3_medium = below 33.64%, 4_high = below 41.40%, and 5_very high = at or below 69.40% 
 
-We are interested in having the quantitative variable `median_household_income` (`v063`) as our outcome because we believe it is a broad variable that can be influenced by many potential factors and can serve as an intuitive output for our other variables of interest. We selected `some_college` (`v069`), which represents the percentage of the population who has at least some college education, because we hypothesized that it would be correlated with median household income, in which a higher value for `some_college` would predict higher incomes. Our motivation to choose `single_parent` (`v082`), the percentage of children living in a single-parent household, was also due to its potential implications on income; we hypothesize that a higher percentage of single-parent households has a negative correlation with median household income. 
+We are interested in having the quantitative variable `median_household_income` (`v063_rawvalue`) as our outcome because we believe it is a broad variable that can be influenced by many potential factors and can serve as an intuitive and informative output for our other variables of interest. We selected `some_college` (`v069_rawvalue`), which represents the percentage of the population who has at least some college education, because we hypothesized that it would be correlated with median household income. That is, we believe a higher value for `some_college` would predict higher incomes and a lower value for `some_college` would predict lower incomes. Although college education is not the only factor that predicts household wealth, it is a relevant and important component to consider, especially since many high-paying jobs require college degrees. Our motivation to choose `single_parent` (`v082_rawvalue`), the percentage of children living in a single-parent household, was also due to its potential implications on income. We hypothesize that a higher percentage of single-parent households has a negative correlation with median household income. A single-parent household would typically involve one working adult and could signify a lower median household income than if two adults were working in a household. Thus, we believe it is important to learn more about how single-parent households may have lower household income in these six states.   
 
-We chose to investigate `broadband_access` (`v166`), the percentage of households with broadband internet access, and our interest in this variable is due to its capacity as a proxy for technological accessibility in a household and its statistical association with income. Broadband access can be potentially related to the outcome in that technological accessibility and high-speed internet at home may enable individuals to find higher-income jobs, while higher incomes would allow people to afford high-speed internet. We turned `broadband_access_raw` from a quantitative variable into a binary categorical variable (`broadband_access_2cat`) based on the cutoff of 78.44%, which is the median percentage, and classified the categories as either `low` or `high`.
+We chose to investigate `broadband_access` (`v166_rawvalue`), the percentage of households with broadband internet access, and our interest in this variable is due to its capacity to function as a proxy for technological accessibility in a household and its statistical association with income. Broadband access can be potentially related to our outcome in that technological accessibility and high-speed internet at home may enable individuals to find higher-income jobs, while higher incomes would also allow people to afford high-speed internet. In this sense, broadband access is important because of its reflection of technological accessibility and potential indirect relationship to household income. We turned `broadband_access_raw` from a quantitative variable into a binary categorical variable (`broadband_access_2cat`) based on the cutoff of 78.44%, which is the median percentage, and classified the categories as either `low` or `high`.
 
-We chose to investigate `long_commute` (`v137`), the percentage of people who drive alone to work who have a commute longer than 30 minutes, because we are interested in learning whether commute times can be used as a predictor for median household income. `long_commute` can be related to income in that individuals with long commutes can afford the costs associated with such commutes and thus have higher incomes. Conversely, it is possible that individuals without long commutes, especially those in urban areas, may not be able to afford to live further from their workplace. We turned `long_commute_raw` from a quantitative variable into a multi-categorical variable with 5 categories (`long_commute_5cat`) based on the quintiles, minimum, and maximum of the variable's distribution. The 5 categories are as follows, in ascending order of percentage: the first quintile (0-20%) is `1_very_low`, the second quintile (20-40%) is `2_low`, the third quintile (40-60%) is `3_medium`, the fourth quintile (60-80%) is `4_high`, and the final quintile (80-100%) is `5_very_high`. We chose to divide `long_commute_raw` into 5 categories because this variable's spread is not large enough to justify too many categories, and because we wanted an odd number of categories to avoid splitting the data into a "low" half and a "high" half. We feel that 5 categories appropriately satisfies both these parameters
+We chose to investigate `long_commute` (`v137_rawvalue`), the percentage of people who drive alone to work and have a commute longer than 30 minutes, because we are interested in learning whether commute times can be used as a predictor for median household income. `long_commute` can be related to income in that individuals with long commutes can afford the costs associated with such commutes and thus have higher incomes. Conversely, it is possible that individuals without long commutes, especially those in urban areas, may not be able to afford to live further from their workplace. Overall, the percentage of workers with long commutes is important because of its intriguing potential relationship to a worker's lifestyle and livelihood, which can involve his or her household income. We turned `long_commute_raw` from a quantitative variable into a multi-categorical variable with 5 categories (`long_commute_5cat`) based on the quintiles, minimum, and maximum of the variable's distribution. The 5 categories are as follows, in ascending order of percentage: the first quintile (0-20%) is `1_very_low`, the second quintile (20-40%) is `2_low`, the third quintile (40-60%) is `3_medium`, the fourth quintile (60-80%) is `4_high`, and the final quintile (80-100%) is `5_very_high`. We chose to divide `long_commute_raw` into 5 categories because this variable's spread is not large enough to justify too many categories, and because we wanted an odd number of categories to avoid splitting the data into a "low" half and a "high" half without there being a "medium" category as well. We feel that having a multi-categorical variable with 5 levels appropriately satisfies both of these parameters. 
 
 ## Proposal Requirement 3 
 
