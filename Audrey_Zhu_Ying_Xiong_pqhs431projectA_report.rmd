@@ -1,0 +1,202 @@
+---
+title: "Audrey_Zhu_Ying_Xiong_pqhs431_projectA_report"
+author: "Audrey Zhu and Ying Xiong"
+date: "`r Sys.Date()"
+output: 
+  rmdformats::readthedown:
+    highlight: kate
+    number_sections: TRUE
+---
+# Preliminaries
+
+```{r setup, echo=FALSE, cache=FALSE}
+library(knitr)
+library(rmdformats)
+
+options(max.print="100")
+opts_chunk$set(comment=NA)
+opts_knit$set(width=75)
+```
+
+## R Packages
+
+```{r load_packages}
+library(glue)
+library(janitor)
+library(car)
+library(equatiomatic)
+library(broom)
+library(patchwork)
+library(tidyverse)
+```
+
+## Data Ingest
+
+```{r ingest_data}
+chr <- readRDS("data/chr_2021_Audrey_Zhu_Ying_Xiong.Rds")
+```
+
+# Analysis 1
+
+```{r a1_scatterplot}
+ggplot(chr, aes(x = some_college, y = median_household_income)) +
+  geom_point(col = "lightslateblue", alpha = 0.7) +
+  geom_smooth(method = loess, se = FALSE) +
+  geom_smooth(method = lm, se = FALSE, col = "red") +
+  geom_label(x = 30, y = 100, size = 3,
+             label = glue('Pearson r = {round_half_up(cor(chr$some_college, 
+                          chr$median_household_income), 3)}.')) +
+  theme_bw() +
+  labs(title = "Some College vs. Median Household Income",
+       x = "Percent of Adult Population with Some College Education",
+       y = "Median Household Income (thousands of dollars)")
+```
+
+## Box-Cox Analysis
+
+```{r a1_boxcox}
+boxCox(chr$median_household_income ~ chr$some_college)
+```
+
+## Inverse Transformation
+
+```{r a1_transformed_scatter}
+a1_inv <- chr %>% 
+  mutate(inv_median_household_income = 1/median_household_income)
+
+ggplot(a1_inv, aes(x = some_college, y = inv_median_household_income)) +
+  geom_point(col = "lightslateblue", alpha = 0.7) +
+  geom_smooth(method = loess, se = FALSE) +
+  geom_smooth(method = lm, se = FALSE, col = "red") +
+  theme_bw() +
+  labs(title = "Inverse Transformation of Some College vs. Median Household Income",
+       x = "Percent of Adult Population with Some College Education",
+       y = "Inverse of Median Household Income")
+```
+
+## Fitted Model
+
+```{r a1_lm}
+model1 <- lm(inv_median_household_income ~ some_college, data = a1_inv)
+
+model1
+
+extract_eq(model1, use_coefs = TRUE, coef_digits = 5)
+```
+
+```{r a1_conf_int}
+tidy(model1, conf.int = TRUE, conf.level = 0.90) %>%
+  select(term, estimate, conf.low, conf.high) %>% kable()
+
+glance(model1) %>% select(nobs, r.squared) %>% kable()
+```
+
+## Residuals
+
+```{r a1_residuals}
+a1_aug <- augment(model1, data = a1_inv)
+
+p1 <- ggplot(a1_aug, aes(sample = .resid)) +
+  geom_qq(col = "lightslateblue") + geom_qq_line(col = "black") +
+  theme(aspect.ratio = 1) +
+  labs(title = "Normal Q-Q") +
+  theme_bw()
+
+p2 <- ggplot(a1_aug, aes(x = .resid)) +
+  geom_histogram(aes(y = stat(density)),
+                 bins = 20, fill = "lightslateblue", col = "white") +
+  stat_function(fun = dnorm,,
+                args = list(mean = mean(a1_aug$.resid),
+                            sd = sd(a1_aug$.resid)),
+                col = "blue", lwd = 1.5) +
+  labs(title = "Hist + Normal Density: 
+       model1 Residuals") +
+  theme_bw()
+
+p1 + p2 + plot_layout(widths = c(1,1))
+```
+
+# Analysis 2
+
+```{r a2_boxplots}
+ggplot(chr, aes(x = median_household_income, y = long_commute_5cat, 
+                fill = long_commute_5cat)) +
+  geom_boxplot() +
+  guides(fill = "none") +
+  theme_bw() +
+  labs(x = "Median Household Income (thousands of dollars)",
+       y = "Percentage of Lone Commuters 
+       with a Long Commute",
+       title = "Distribution of Median Household Income by Commute Category")
+```
+
+## Transformations
+
+### Logarithm
+
+```{r a2_log}
+a2_log <- chr %>% 
+  mutate(log_median_household_income = log(median_household_income))
+
+ggplot(a2_log, aes(x = log_median_household_income, y = long_commute_5cat, 
+                fill = long_commute_5cat)) +
+  geom_boxplot() +
+  guides(fill = "none") +
+  theme_bw() +
+  labs(x = "Log of Median Household Income",
+       y = "Percentage of Lone Commuters 
+       with a Long Commute",
+       title = "Logarithmic Transformation of Median Household Income")
+```
+
+### Square
+
+```{r a2_sqr}
+a2_sqr <- chr %>% 
+  mutate(sqr_median_household_income = median_household_income^2)
+
+ggplot(a2_sqr, aes(x = sqr_median_household_income, y = long_commute_5cat, 
+                fill = long_commute_5cat)) +
+  geom_boxplot() +
+  guides(fill = "none") +
+  theme_bw() +
+  labs(x = "Square of Median Household Income",
+       y = "Percentage of Lone Commuters 
+       with a Long Commute",
+       title = "Square Transformation of Median Household Income")
+```
+
+### Inverse
+
+```{r a2_inv}
+a2_inv <- chr %>% 
+  mutate(inv_median_household_income = 1/median_household_income)
+
+ggplot(a2_inv, aes(x = inv_median_household_income, y = long_commute_5cat, 
+                fill = long_commute_5cat)) +
+  geom_boxplot() +
+  guides(fill = "none") +
+  theme_bw() +
+  labs(x = "Inverse of Median Household Income",
+       y = "Percentage of Lone Commuters 
+       with a Long Commute",
+       title = "Inverse Transformation of Median Household Income")
+```
+  
+### Square Root
+
+```{r a2_sqrt}
+a2_sqrt <- chr %>% 
+  mutate(sqrt_median_household_income = sqrt(median_household_income))
+
+ggplot(a2_sqrt, aes(x = sqrt_median_household_income, y = long_commute_5cat, 
+                fill = long_commute_5cat)) +
+  geom_boxplot() +
+  guides(fill = "none") +
+  theme_bw() +
+  labs(x = "Square Root of Median Household Income",
+       y = "Percentage of Lone Commuters 
+       with a Long Commute",
+       title = "Square Root Transformation of Median Household Income")
+```
+
