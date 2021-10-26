@@ -185,5 +185,18 @@ ggplot(a2_inv, aes(x = inv_median_household_income, y = long_commute_5cat,
   
 ### Square Root
 
+```{r a2_sqrt}
+a2_sqrt <- chr %>% 
+  mutate(sqrt_median_household_income = sqrt(median_household_income))
 
+ggplot(a2_sqrt, aes(x = sqrt_median_household_income, y = long_commute_5cat, 
+                fill = long_commute_5cat)) +
+  geom_boxplot() +
+  guides(fill = "none") +
+  theme_bw() +
+  labs(x = "Square Root of Median Household Income",
+       y = "Percentage of Lone Commuters 
+       with a Long Commute",
+       title = "Square Root Transformation of Median Household Income")
+```
 
