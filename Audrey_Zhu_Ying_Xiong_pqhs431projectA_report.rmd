@@ -27,6 +27,7 @@ library(car)
 library(equatiomatic)
 library(broom)
 library(patchwork)
+library(ggrepel)
 library(tidyverse)
 ```
 
@@ -84,14 +85,16 @@ model1
 extract_eq(model1, use_coefs = TRUE, coef_digits = 5)
 ```
 
-```{r a1_conf_int}
+```{r a1_model_summary}
 tidy(model1, conf.int = TRUE, conf.level = 0.90) %>%
-  select(term, estimate, conf.low, conf.high) %>% kable()
+  select(term, estimate, std.error, conf.low, conf.high) %>% kable()
 
-glance(model1) %>% select(nobs, r.squared) %>% kable()
+glance(model1) %>% select(nobs, r.squared, sigma) %>% kable()
+
+cor(a1_inv$some_college, a1_inv$inv_median_household_income)
 ```
 
-## Residuals
+## Residuals Analysis
 
 ```{r a1_residuals}
 a1_aug <- augment(model1, data = a1_inv)
@@ -105,7 +108,7 @@ p1 <- ggplot(a1_aug, aes(sample = .resid)) +
 p2 <- ggplot(a1_aug, aes(x = .resid)) +
   geom_histogram(aes(y = stat(density)),
                  bins = 20, fill = "lightslateblue", col = "white") +
-  stat_function(fun = dnorm,,
+  stat_function(fun = dnorm,
                 args = list(mean = mean(a1_aug$.resid),
                             sd = sd(a1_aug$.resid)),
                 col = "blue", lwd = 1.5) +
@@ -116,7 +119,32 @@ p2 <- ggplot(a1_aug, aes(x = .resid)) +
 p1 + p2 + plot_layout(widths = c(1,1))
 ```
 
+### Cuyahoga County Prediction
+
+```{r a1_cuyahoga}
+1/predict(model1, chr %>% filter(county == "Cuyahoga County"))
+
+chr %>% 
+  filter(county == "Cuyahoga County") %>% select(county, median_household_income)
+```
+
+### Two Counties with the Largest Residuals
+
+```{r a1_largest_residuals}
+a1_aug %>% slice_max(abs(.resid), n = 2)
+```
+
 # Analysis 2
+
+```{r a2_variables}
+naniar::miss_var_summary(chr %>% 
+                           select(state, median_household_income,
+                                  long_commute_5cat))
+
+chr %>% filter(county == "Cuyahoga County") %>% 
+  select(county, median_household_income, long_commute_5cat)
+```
+
 
 ```{r a2_boxplots}
 ggplot(chr, aes(x = median_household_income, y = long_commute_5cat, 
@@ -198,5 +226,106 @@ ggplot(a2_sqrt, aes(x = sqrt_median_household_income, y = long_commute_5cat,
        y = "Percentage of Lone Commuters 
        with a Long Commute",
        title = "Square Root Transformation of Median Household Income")
+```
+
+## Fitted Model: No Transformation
+
+```{r a2_model}
+model2 <- lm(median_household_income ~ long_commute_5cat, data = chr)
+
+summary(model2)
+```
+
+### Residual Analysis
+
+```{r model2_residuals}
+a2_aug <- augment(model2, data = chr)
+
+p1 <- ggplot(a2_aug, aes(sample = .resid)) +
+  geom_qq(col = "lightslateblue") + geom_qq_line(col = "black") +
+  theme(aspect.ratio = 1) +
+  labs(title = "Normal Q-Q") +
+  theme_bw()
+
+p2 <- ggplot(a2_aug, aes(x = .resid)) +
+  geom_histogram(aes(y = stat(density)),
+                 bins = 20, fill = "lightslateblue", col = "white") +
+  stat_function(fun = dnorm,
+                args = list(mean = mean(a2_aug$.resid),
+                            sd = sd(a2_aug$.resid)),
+                col = "blue", lwd = 1.5) +
+  labs(title = "Hist + Normal Density: 
+       model2 Residuals") +
+  theme_bw()
+
+p1 + p2 + plot_layout(widths = c(1,1))
+```
+
+```{r}
+glance(model2) %>%
+  select(r.squared, adj.r.squared, sigma, AIC, BIC, nobs) %>%
+  kable(digits = c(3,3,1,1,1,0))
+```
+
+## Fitted Model: Logarithmic Transformation
+
+```{r a2_log}
+model2_log <- lm(log_median_household_income ~ long_commute_5cat, data = a2_log)
+
+a2_log_aug <- augment(model2_log, data = a2_log)
+
+p1 <- ggplot(a2_log_aug, aes(sample = .resid)) +
+  geom_qq(col = "lightslateblue") + geom_qq_line(col = "black") +
+  theme(aspect.ratio = 1) +
+  labs(title = "Normal Q-Q") +
+  theme_bw()
+
+p2 <- ggplot(a2_log_aug, aes(x = .resid)) +
+  geom_histogram(aes(y = stat(density)),
+                 bins = 20, fill = "lightslateblue", col = "white") +
+  stat_function(fun = dnorm,
+                args = list(mean = mean(a2_log_aug$.resid),
+                            sd = sd(a2_log_aug$.resid)),
+                col = "blue", lwd = 1.5) +
+  labs(title = "Hist + Normal Density: 
+       model2 Residuals") +
+  theme_bw()
+
+p1 + p2 + plot_layout(widths = c(1,1))
+
+glance(model2_log) %>%
+  select(r.squared, adj.r.squared, sigma, AIC, BIC, nobs) %>%
+  kable(digits = c(3,3,1,1,1,0))
+```
+
+## Fitted Model: Inverse Transformation
+
+```{r a2_inv}
+model2_inv <- lm(inv_median_household_income ~ long_commute_5cat, data = a2_inv)
+
+a2_inv_aug <- augment(model2_inv, data = a2_inv)
+
+p1 <- ggplot(a2_inv_aug, aes(sample = .resid)) +
+  geom_qq(col = "lightslateblue") + geom_qq_line(col = "black") +
+  theme(aspect.ratio = 1) +
+  labs(title = "Normal Q-Q") +
+  theme_bw()
+
+p2 <- ggplot(a2_inv_aug, aes(x = .resid)) +
+  geom_histogram(aes(y = stat(density)),
+                 bins = 20, fill = "lightslateblue", col = "white") +
+  stat_function(fun = dnorm,
+                args = list(mean = mean(a2_inv_aug$.resid),
+                            sd = sd(a2_inv_aug$.resid)),
+                col = "blue", lwd = 1.5) +
+  labs(title = "Hist + Normal Density: 
+       model2_inv Residuals") +
+  theme_bw()
+
+p1 + p2 + plot_layout(widths = c(1,1))
+
+glance(model2_inv) %>%
+  select(r.squared, adj.r.squared, sigma, AIC, BIC, nobs) %>%
+  kable(digits = c(3,3,1,1,1,0))
 ```
 
