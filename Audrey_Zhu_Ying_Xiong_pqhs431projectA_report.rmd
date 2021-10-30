@@ -7,7 +7,7 @@ output:
     highlight: kate
     number_sections: TRUE
 ---
-# Preliminaries
+# Setup {-}
 
 ```{r setup, echo=FALSE, cache=FALSE}
 library(knitr)
@@ -17,8 +17,6 @@ options(max.print="100")
 opts_chunk$set(comment=NA)
 opts_knit$set(width=75)
 ```
-
-## R Packages
 
 ```{r load_packages}
 library(glue)
@@ -37,7 +35,13 @@ library(tidyverse)
 chr <- readRDS("data/chr_2021_Audrey_Zhu_Ying_Xiong.Rds")
 ```
 
-# Analysis 1
+## Data Summary
+
+```{r summarize_data}
+summary(chr)
+```
+
+# A Model for Median Household Income Using Percentage of College Education
 
 ```{r a1_variables}
 naniar::miss_var_summary(chr %>% 
@@ -48,6 +52,7 @@ chr %>% filter(county == "Cuyahoga County") %>%
   select()
 ```
 
+## Initial Visualization
 
 ```{r a1_scatterplot}
 ggplot(chr, aes(x = some_college, y = median_household_income)) +
@@ -58,18 +63,17 @@ ggplot(chr, aes(x = some_college, y = median_household_income)) +
              label = glue('Pearson r = {round_half_up(cor(chr$some_college, 
                           chr$median_household_income), 3)}.')) +
   theme_bw() +
-  labs(title = "Some College vs. Median Household Income",
+  labs(title = "Nonlinear Association between Some College
+       and Median Household Income",
        x = "Percent of Adult Population with Some College Education",
        y = "Median Household Income (thousands of dollars)")
 ```
 
-## Box-Cox Analysis
+## Transformation Analysis
 
 ```{r a1_boxcox}
 boxCox(chr$median_household_income ~ chr$some_college)
 ```
-
-## Inverse Transformation
 
 ```{r a1_transformed_scatter}
 a1_inv <- chr %>% 
@@ -85,7 +89,7 @@ ggplot(a1_inv, aes(x = some_college, y = inv_median_household_income)) +
        y = "Inverse of Median Household Income")
 ```
 
-## Fitted Model
+## Fitting a Model
 
 ```{r a1_lm}
 model1 <- lm(inv_median_household_income ~ some_college, data = a1_inv)
@@ -110,14 +114,14 @@ cor(a1_inv$some_college, a1_inv$inv_median_household_income)
 a1_aug <- augment(model1, data = a1_inv)
 
 p1 <- ggplot(a1_aug, aes(x = .fitted, y = .resid)) +
-  geom_point(col = "lightslateblue") +
+  geom_point(col = "lightslateblue", alpha = 0.6) +
   geom_smooth(method = "lm", se = FALSE, col = "red") +
   geom_smooth(method = "loess", se = FALSE, col = "blue") +
   theme_bw() +
   labs(title = "Linearity of Model1 Residuals")
 
 p2 <- ggplot(a1_aug, aes(sample = .resid)) +
-  geom_qq(col = "lightslateblue") + geom_qq_line(col = "black") +
+  geom_qq(col = "lightslateblue", alpha = 0.6) + geom_qq_line(col = "black") +
   theme(aspect.ratio = 1) +
   labs(title = "Normal Q-Q: Model1 Residuals",
        y = "Inverse of Median Household Income") +
@@ -126,23 +130,20 @@ p2 <- ggplot(a1_aug, aes(sample = .resid)) +
 p1 + p2 + plot_layout(widths = c(1,1))
 ```
 
-### Cuyahoga County Prediction
-
 ```{r a1_cuyahoga}
-1/predict(model1, chr %>% filter(county == "Cuyahoga County"))
-
 chr %>% 
-  filter(county == "Cuyahoga County") %>% select(county, median_household_income)
+  filter(county == "Cuyahoga County") %>% 
+  select(county, median_household_income) %>% 
+  mutate(prediction = 1/predict(model1, chr %>% 
+                                  filter(county == "Cuyahoga County")))
 ```
-
-### Two Counties with the Largest Residuals
 
 ```{r a1_largest_residuals}
 a1_aug %>% slice_max(abs(.resid), n = 2) %>% 
   select(state, county, median_household_income, some_college, .resid)
 ```
 
-# Analysis 2
+# A Model for Median Household Income Using Long Commute Category
 
 ```{r a2_variables}
 naniar::miss_var_summary(chr %>% 
@@ -153,6 +154,7 @@ chr %>% filter(county == "Cuyahoga County") %>%
   select(county, median_household_income, long_commute_5cat)
 ```
 
+## Initial Visualization
 
 ```{r a2_boxplots}
 ggplot(chr, aes(x = median_household_income, y = long_commute_5cat, 
@@ -183,12 +185,12 @@ ggplot(a2_inv, aes(x = inv_median_household_income, y = long_commute_5cat,
        title = "Inverse Transformation of Median Household Income")
 ```
 
-## Fitted Model
+## Fitting a Model
 
 ```{r model2}
 model2 <- lm(inv_median_household_income ~ long_commute_5cat, data = a2_inv)
 
-model2
+summary(model2)
 
 extract_eq(model2, use_coefs = TRUE, coef_digits = 5)
 ```
@@ -200,19 +202,33 @@ tidy(model2, conf.int = TRUE, conf.level = 0.90) %>%
 glance(model2) %>% select(nobs, r.squared, sigma) %>% kable()
 ```
 
+## ANOVA Analysis
+
+```{r a2_anova}
+anova(model2)
+```
+
+## Tukey HSD Pairwise Comparisons
+
+```{r tukey_comparisons}
+tuk_inc <- TukeyHSD(aov(inv_median_household_income ~ long_commute_5cat, 
+                        data = a2_inv), 
+                    ordered = TRUE, conf.level = 0.90)
+tuk_inc
+
+plot(tuk_inc)
+```
+
 ## Prediction Analysis
 
 ```{r a2_residuals}
 a2_aug <- augment(model2, data = a2_inv)
 
-ggplot(a2_aug, aes(x = .resid, y = long_commute_5cat, 
-                   fill = long_commute_5cat)) +
-  geom_boxplot() +
-  guides(fill = "none") +
+ggplot(a2_aug, aes(x = .fitted, y = .resid, col = long_commute_5cat)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE, col = "black") +
   theme_bw() +
-  labs(title = "Distribution of Residuals by Commute Category",
-       x = "Residuals",
-       y = "Commute Category")
+  labs(title = "Model2 Residuals")
 
 ggplot(a2_aug, aes(sample = .resid, col = long_commute_5cat)) +
   geom_qq() +
@@ -220,17 +236,127 @@ ggplot(a2_aug, aes(sample = .resid, col = long_commute_5cat)) +
   facet_wrap(~ long_commute_5cat) +
   guides(col = "none") +
   theme_bw() +
-  labs(title = "Normality of Residual Distribution by Commute Category")
+  labs(title = "Normal Q-Q of Residuals by Commute Category")
 ```
 
 ```{r a2_cuyahoga}
-1/predict(model2, chr %>% filter(county == "Cuyahoga County"))
-
 chr %>% filter(county == "Cuyahoga County") %>% 
-  select(state, county, median_household_income, long_commute_5cat)
+  mutate(prediction = 1/predict(model2, chr %>% 
+                                  filter(county == "Cuyahoga County"))) %>% 
+  select(state, county, median_household_income, prediction, long_commute_5cat)
 ```
 
 ```{r a2_largest_residuals}
 a2_aug %>% slice_max(abs(.resid), n = 2) %>% 
   select(state, county, median_household_income, long_commute_5cat, .resid)
+```
+
+# A Model for Median Household Income Using Percentage of Single-Parent Households, Adjusting for State
+
+```{r a3_miss_var_summary}
+naniar::miss_var_summary(chr %>% 
+                           select(state, county, median_household_income,
+                                  single_parent))
+```
+
+```{r a3_cuyahoga}
+chr %>% filter(county == "Cuyahoga County") %>% 
+  select(state, county, median_household_income, single_parent)
+```
+
+## Initial Visualization
+
+```{r a3_scatterplot}
+ggplot(chr, aes(x = single_parent, y = median_household_income, col = state)) +
+  geom_point(alpha = 0.7, size = 2) +
+  geom_smooth(method = "lm", se = FALSE, col = "red") +
+  geom_smooth(method = "loess", se = FALSE, col = "blue") +
+  geom_label(x = 40, y = 100, size = 3, col = "black",
+             label = glue('Pearson r = {round_half_up(cor(chr$single_parent, 
+                          chr$median_household_income), 3)}.')) +
+  theme_bw() +
+  labs(title = "Median Household Income vs. Single Parent Households",
+       x = "Percentage of Households with a Single Parent",
+       y = "Median Household Income (Thousands of Dollars)")
+```
+
+## Transformation Assessment
+
+```{r a3_boxcox}
+boxCox(chr$median_household_income ~ chr$single_parent * chr$state)
+```
+
+## Inverse Transformation
+
+```{r a3_inv}
+a3_inv <- chr %>% 
+  mutate(inv_median_household_income = 1/median_household_income)
+
+ggplot(a3_inv, aes(x = single_parent, y = inv_median_household_income,
+                   col = state)) +
+  geom_point(size = 2, alpha = 0.7) +
+  geom_smooth(method = "lm", se = FALSE, col = "red") +
+  geom_smooth(method = "loess", se = FALSE, col = "blue") +
+  theme_bw() +
+  labs(title = "Inverse Transformation of Median Household Income",
+      x = "Percentage of Households with a Single Parent",
+      y = "Inverse of Median Household Income (1/$1000)")
+```
+
+## Fitted Model
+
+```{r a3_model}
+model3 <- lm(inv_median_household_income ~ single_parent * state,
+             data = a3_inv)
+
+summary(model3)
+
+extract_eq(model3, use_coefs = TRUE, coef_digits = 5)
+```
+
+```{r a3_model_summary}
+tidy(model3, conf.int = TRUE, conf.level = 0.90) %>%
+  select(term, estimate, std.error, conf.low, conf.high) %>% kable()
+
+glance(model3) %>% select(nobs, r.squared, sigma) %>% kable()
+```
+
+```{r a3_anova}
+anova(model3)
+```
+
+## Residuals Analysis
+
+```{r a1_residuals}
+a3_aug <- augment(model3, data = a3_inv)
+
+p1 <- ggplot(a3_aug, aes(x = .fitted, y = .resid, col = state)) +
+  geom_point(alpha = 0.6) +
+  geom_smooth(method = "lm", se = FALSE, col = "red") +
+  geom_smooth(method = "loess", se = FALSE, col = "blue") +
+  theme_bw() +
+  labs(title = "Linearity of Model3 Residuals")
+
+p2 <- ggplot(a3_aug, aes(sample = .resid)) +
+  geom_qq(col = "lightslateblue", alpha = 0.6) + geom_qq_line(col = "black") +
+  theme(aspect.ratio = 1) +
+  labs(title = "Normal Q-Q: Model1 
+       Residuals",
+       y = "Inverse of Median Household Income") +
+  theme_bw()
+
+p1 + p2
+```
+
+```{r a3_cuyahoga}
+chr %>% 
+  filter(county == "Cuyahoga County") %>% 
+  select(county, median_household_income) %>% 
+  mutate(prediction = 1/predict(model3, chr %>% 
+                                  filter(county == "Cuyahoga County")))
+```
+
+```{r a3_largest_residuals}
+a3_aug %>% slice_max(abs(.resid), n = 2) %>% 
+  select(state, county, median_household_income, some_college, .resid)
 ```
