@@ -1,5 +1,5 @@
 ---
-title: "Audrey_Zhu_Ying_Xiong_pqhs431_projectA_report"
+title: "Investigating Median Household Income and Potential Influencing Factors in Six States"
 author: "Audrey Zhu and Ying Xiong"
 date: "`r Sys.Date()"
 output: 
@@ -18,7 +18,7 @@ opts_chunk$set(comment=NA)
 opts_knit$set(width=75)
 ```
 
-```{r load_packages}
+```{r load_packages, message=FALSE}
 library(glue)
 library(janitor)
 library(car)
@@ -41,7 +41,7 @@ chr <- readRDS("data/chr_2021_Audrey_Zhu_Ying_Xiong.Rds")
 summary(chr)
 ```
 
-# A Model for Median Household Income Using Percentage of College Education
+# A Model for Median Household Income Using of College Education Rates
 
 ```{r a1_variables}
 naniar::miss_var_summary(chr %>% 
@@ -49,8 +49,12 @@ naniar::miss_var_summary(chr %>%
                                   some_college))
 
 chr %>% filter(county == "Cuyahoga County") %>% 
-  select()
+  select(state, county, median_household_income, some_college)
 ```
+
+## Research Question
+
+Does an increase in the percentage of adults with some college education correlate strongly with higher median household income in the total of 375 counties in the states of California, Minnesota, Montana, Ohio, Washington, and West Virginia? 
 
 ## Initial Visualization
 
@@ -63,17 +67,23 @@ ggplot(chr, aes(x = some_college, y = median_household_income)) +
              label = glue('Pearson r = {round_half_up(cor(chr$some_college, 
                           chr$median_household_income), 3)}.')) +
   theme_bw() +
-  labs(title = "Nonlinear Association between Some College
-       and Median Household Income",
+  labs(title = "Nonlinear Association between Some Collegeand Median Household 
+       Income",
        x = "Percent of Adult Population with Some College Education",
        y = "Median Household Income (thousands of dollars)")
 ```
 
+We first created a scatter plot that examines the relationship between the percentage of adults with some college education (x-axis) and median household income (y-axis). Our initial general observations were that an increase in the percentage of adults with some college education correlated with an increase in median household income, and that conversely, a decrease in the percentage of some college education correlated with a decrease in median household income. We then superimposed a linear model (red) and a Loess smooth curve (blue) onto the scatter plot. The scatter plot illustrates that the Loess smooth curve is considerably different from the linear model. The deviation between the Loess smooth and linear model is especially apparent at the ends of the distribution, such as below 45% and above 75% of adults with some college education. Regarding this deviation, the Loess smooth appears to plateau for median household income from roughly 20% to 45% of some college education and then increases rapidly after 75%. The linear model does not account for these deviations at either of the two ends of the distribution. Our linear model has a Pearson r of 0.603, indicating moderate strength.
+
 ## Transformation Analysis
+
+Motivated to improve the fit by using a simple linear regression model, we used the `boxCox` function to determine an appropriate transformation.
 
 ```{r a1_boxcox}
 boxCox(chr$median_household_income ~ chr$some_college)
 ```
+
+Because the Box-Cox plot peaks at roughly -1, we elected to use an inverse transformation to better linearize the relationship between median household income and some college education.
 
 ```{r a1_transformed_scatter}
 a1_inv <- chr %>% 
@@ -89,6 +99,8 @@ ggplot(a1_inv, aes(x = some_college, y = inv_median_household_income)) +
        y = "Inverse of Median Household Income")
 ```
 
+Our initial observations for this transformed plot were that the Loess smooth curve matched the linear model much better than before, so our transformation was appropriate.
+
 ## Fitting a Model
 
 ```{r a1_lm}
@@ -99,14 +111,22 @@ model1
 extract_eq(model1, use_coefs = TRUE, coef_digits = 5)
 ```
 
-```{r a1_model_summary}
+Our linear model after the transformation is as follows: `inverse of median household income = 0.03068 - 0.00022 * some college education`. The `0.03068` refers to the y-intercept of this plot and indicates the inverse of median income without considering any college education; this `0.03068` value per se equates to a median household of roughly $32,500. The `-0.00022` refers to the slope of this equation and decreases the y-intercept based on the percentage of adults with some college education. Broadly, this equation indicates that more college education is correlated with a lower inverse of median household income, which results in a higher income. This equation also indicates the converse: less college education is correlated with a higher inverse of median household income, which results in a lower income.
+
+```{r a1_model_conf_int}
 tidy(model1, conf.int = TRUE, conf.level = 0.90) %>%
   select(term, estimate, std.error, conf.low, conf.high) %>% kable()
+```
 
+Regarding our confidence intervals, we are 90% confident that the population y-intercept of the inverse of median household income is between 0.029 and 0.032, and we are also 90% confident that the population slope of inverse income versus percentage of some college education is between -0.00024 and -0.00019.
+
+```{r a1_fit_measures}
 glance(model1) %>% select(nobs, r.squared, sigma) %>% kable()
 
 cor(a1_inv$some_college, a1_inv$inv_median_household_income)
 ```
+
+Based on our summary measures of goodness of fit for our equation, we found the residual standard deviation (sigma) is 0.003, the R-squared value is 0.419. As compared to the untransformed equation, the R-squared value has improved slightly from 0.363 to 0.419.
 
 ## Residuals Analysis
 
@@ -116,7 +136,6 @@ a1_aug <- augment(model1, data = a1_inv)
 p1 <- ggplot(a1_aug, aes(x = .fitted, y = .resid)) +
   geom_point(col = "lightslateblue", alpha = 0.6) +
   geom_smooth(method = "lm", se = FALSE, col = "red") +
-  geom_smooth(method = "loess", se = FALSE, col = "blue") +
   theme_bw() +
   labs(title = "Linearity of Model1 Residuals")
 
@@ -130,6 +149,8 @@ p2 <- ggplot(a1_aug, aes(sample = .resid)) +
 p1 + p2 + plot_layout(widths = c(1,1))
 ```
 
+Based on our residual analysis, we saw that the inverse transformation has definitely improved normality. The Normal Q-Q plot shows data points closely following the diagonal line with very few outliers. We also assessed linearity of the residuals of our model (i.e. comparing `.resid` versus `.fitted`) and only noted deviations of `.resid` at higher levels of `.fitted`.
+
 ```{r a1_cuyahoga}
 chr %>% 
   filter(county == "Cuyahoga County") %>% 
@@ -142,6 +163,14 @@ chr %>%
 a1_aug %>% slice_max(abs(.resid), n = 2) %>% 
   select(state, county, median_household_income, some_college, .resid)
 ```
+
+Finally, the two counties that the model is least successful at predicting are Holmes County, OH, and Whitman County, WA. Holmes County has a percentage of some college education of 19.2% and a median household income of \$62,596. This county represents denizens with relatively low college education but much higher median household income than would be predicted. Whitman County has a percentage of some college education of 85.3% and a median household income of $45,906. This county includes adults with relatively high college education but much lower median household income than would be predicted.
+
+## Conclusions and Limitations
+
+Based on the analysis, our response to our initial research question is that college education only moderately correlates with higher median household income in the total of 375  counties in the states of California, Minnesota, Montana, Ohio, Washington, and West Virginia. The model indicates that an increase in the percentage of adults with some college education correlates with higher median household income and a decrease in some college education correlates with lower median household income. There is not a strong correlation because the R-squared value is only 0.42. Even so, we can conclude that the percentage of college education offers some relevance in predicting median household income in these 375 counties. 
+
+There are several limitations to the model we have made. Our model only reveals that some college education can correlate with median household income but does not provide any insights on the characteristics of the education, such as whether it was completed, in progress, or even barely started. In fact, the County Health Rankings website notes that this variable encompasses adults aged 25-44 that may or may not have completed their post-secondary education. This represents a massive range in the degree of educational attainment and can dramatically affect median household income. Moreover, the variable of some college education does not indicate the kind of education obtained, and thus may have widely different outcomes based on the type of college education that any adult is pursuing. It might be worthwhile in a future project to divide some college education into separate variables based on degree attainment or actual time in college. Another limitation is that the median household income is a truly broad concept that can be influenced by a myriad of factors. The percentage of adults with some college education can just be one variable but may not encompass other socioeconomic, personal, and situational variables that also influence income. 
 
 # A Model for Median Household Income Using Long Commute Category
 
@@ -165,10 +194,19 @@ ggplot(chr, aes(x = median_household_income, y = long_commute_5cat,
   labs(x = "Median Household Income (thousands of dollars)",
        y = "Percentage of Lone Commuters 
        with a Long Commute",
-       title = "Distribution of Median Household Income by Commute Category")
+       title = "Distribution of Median Household Income by 
+       Commute Category")
 ```
 
-### Inverse Transformation
+## Untransformed Model R-Squared Value
+
+```{r a2_untransformed_r-squared}
+ut <- lm(median_household_income ~ long_commute_5cat, data = chr)
+
+glance(ut) %>% select(nobs, r.squared, sigma) %>% kable()
+```
+
+## Inverse Transformation
 
 ```{r a2_inv}
 a2_inv <- chr %>% 
@@ -182,7 +220,8 @@ ggplot(a2_inv, aes(x = inv_median_household_income, y = long_commute_5cat,
   labs(x = "Inverse of Median Household Income",
        y = "Percentage of Lone Commuters 
        with a Long Commute",
-       title = "Inverse Transformation of Median Household Income")
+       title = "Inverse Transformation of 
+       Median Household Income")
 ```
 
 ## Fitting a Model
@@ -190,12 +229,10 @@ ggplot(a2_inv, aes(x = inv_median_household_income, y = long_commute_5cat,
 ```{r model2}
 model2 <- lm(inv_median_household_income ~ long_commute_5cat, data = a2_inv)
 
-summary(model2)
-
-extract_eq(model2, use_coefs = TRUE, coef_digits = 5)
+extract_eq(model2, use_coefs = TRUE, coef_digits = 5, wrap = TRUE)
 ```
 
-```{r a2_model_summary}
+```{r a2_model_conf_int}
 tidy(model2, conf.int = TRUE, conf.level = 0.90) %>%
   select(term, estimate, std.error, conf.low, conf.high) %>% kable()
 
@@ -211,8 +248,16 @@ anova(model2)
 ## Tukey HSD Pairwise Comparisons
 
 ```{r tukey_comparisons}
+a2_inv_tuk <- a2_inv %>% 
+  mutate(long_commute_5cat = fct_recode(long_commute_5cat,
+                                        "Very Low" = "1_very_low",
+                                        "Low" = "2_low",
+                                        "Medium" = "3_medium",
+                                        "High" = "4_high",
+                                        "Very High" = "5_very_high"))
+
 tuk_inc <- TukeyHSD(aov(inv_median_household_income ~ long_commute_5cat, 
-                        data = a2_inv), 
+                        data = a2_inv_tuk), 
                     ordered = TRUE, conf.level = 0.90)
 tuk_inc
 
@@ -327,7 +372,7 @@ anova(model3)
 
 ## Residuals Analysis
 
-```{r a1_residuals}
+```{r a3_residuals}
 a3_aug <- augment(model3, data = a3_inv)
 
 p1 <- ggplot(a3_aug, aes(x = .fitted, y = .resid, col = state)) +
@@ -348,7 +393,7 @@ p2 <- ggplot(a3_aug, aes(sample = .resid)) +
 p1 + p2
 ```
 
-```{r a3_cuyahoga}
+```{r a3_cuyahoga_predict}
 chr %>% 
   filter(county == "Cuyahoga County") %>% 
   select(county, median_household_income) %>% 
