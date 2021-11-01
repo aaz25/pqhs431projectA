@@ -192,10 +192,8 @@ ggplot(chr, aes(x = median_household_income, y = long_commute_5cat,
   guides(fill = "none") +
   theme_bw() +
   labs(x = "Median Household Income (thousands of dollars)",
-       y = "Percentage of Lone Commuters 
-       with a Long Commute",
-       title = "Distribution of Median Household Income by 
-       Commute Category")
+       y = "Percentage of Lone Commuters with a Long Commute",
+       title = "Distribution of Median Household Income by  Category")
 ```
 
 ## Untransformed Model R-Squared Value
@@ -218,10 +216,8 @@ ggplot(a2_inv, aes(x = inv_median_household_income, y = long_commute_5cat,
   guides(fill = "none") +
   theme_bw() +
   labs(x = "Inverse of Median Household Income",
-       y = "Percentage of Lone Commuters 
-       with a Long Commute",
-       title = "Inverse Transformation of 
-       Median Household Income")
+       y = "Percentage of Lone Commuters with a Long Commute",
+       title = "Inverse Transformation of Median Household Income")
 ```
 
 ## Fitting a Model
@@ -229,7 +225,8 @@ ggplot(a2_inv, aes(x = inv_median_household_income, y = long_commute_5cat,
 ```{r model2}
 model2 <- lm(inv_median_household_income ~ long_commute_5cat, data = a2_inv)
 
-extract_eq(model2, use_coefs = TRUE, coef_digits = 5, wrap = TRUE)
+extract_eq(model2, use_coefs = TRUE, coef_digits = 5, wrap = TRUE,
+           terms_per_line = 3)
 ```
 
 ```{r a2_model_conf_int}
@@ -335,13 +332,17 @@ boxCox(chr$median_household_income ~ chr$single_parent * chr$state)
 
 ```{r a3_inv}
 a3_inv <- chr %>% 
-  mutate(inv_median_household_income = 1/median_household_income)
+  mutate(inv_median_household_income = 1/median_household_income,
+         state = fct_relevel(state, "OH"))
 
 ggplot(a3_inv, aes(x = single_parent, y = inv_median_household_income,
                    col = state)) +
   geom_point(size = 2, alpha = 0.7) +
   geom_smooth(method = "lm", se = FALSE, col = "red") +
   geom_smooth(method = "loess", se = FALSE, col = "blue") +
+  geom_label(x = 5, y = 0.03, size = 3, col = "black",
+             label = glue('Pearson r = {round_half_up(cor(a3_inv$single_parent, 
+                          a3_inv$inv_median_household_income), 3)}.')) +
   theme_bw() +
   labs(title = "Inverse Transformation of Median Household Income",
       x = "Percentage of Households with a Single Parent",
@@ -378,7 +379,6 @@ a3_aug <- augment(model3, data = a3_inv)
 p1 <- ggplot(a3_aug, aes(x = .fitted, y = .resid, col = state)) +
   geom_point(alpha = 0.6) +
   geom_smooth(method = "lm", se = FALSE, col = "red") +
-  geom_smooth(method = "loess", se = FALSE, col = "blue") +
   theme_bw() +
   labs(title = "Linearity of Model3 Residuals")
 
